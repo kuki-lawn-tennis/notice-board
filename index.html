@@ -296,7 +296,27 @@
     .list-title {
       font-size: 17px;
       font-weight: bold;
+      margin-bottom: 0;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .list-title::-webkit-details-marker {
+      display: none;
+    }
+
+    .list-title::after {
+      content: '+';
+      float: right;
+      margin-left: 12px;
+    }
+
+    .list-card[open] > .list-title {
       margin-bottom: 8px;
+    }
+
+    .list-card[open] > .list-title::after {
+      content: '-';
     }
 
     .list-content {
@@ -1349,6 +1369,9 @@
   let gasApiConnectionError = null;
   let gasApiRequestId = 0;
   let gasApiHandshakeTimer = null;
+  let gasApiHandshakeRetryCount = 0;
+  let gasApiConfigured = false;
+  let gasApiReconnectOnReady = false;
 
   gasApiFrame.title = 'Google Apps Script API';
   gasApiFrame.setAttribute('aria-hidden', 'true');
@@ -1454,10 +1477,13 @@
       if (!event.source || !isGasApiOrigin_(event.origin)) return;
       if (gasApiWindow && event.source !== gasApiWindow) return;
 
+      const reconnecting = gasApiReconnectOnReady;
+      gasApiReconnectOnReady = false;
       gasApiWindow = event.source;
       gasApiOrigin = event.origin;
       gasApiReady = true;
       gasApiConnectionError = null;
+      gasApiHandshakeRetryCount = 0;
       if (gasApiHandshakeTimer) {
         clearTimeout(gasApiHandshakeTimer);
         gasApiHandshakeTimer = null;
@@ -1468,6 +1494,7 @@
         gasApiPending.set(request.id, request);
         sendGasApiRequest_(request);
       }
+      if (reconnecting) loadPublicData();
       return;
     }
 
@@ -1510,6 +1537,12 @@
 
       if (gasApiHandshakeTimer) clearTimeout(gasApiHandshakeTimer);
       gasApiHandshakeTimer = setTimeout(function() {
+        gasApiHandshakeTimer = null;
+        if (gasApiHandshakeRetryCount < 1) {
+          gasApiHandshakeRetryCount++;
+          gasApiFrame.src = gasApiFrame.src;
+          return;
+        }
         rejectPendingGasApiCalls_(new Error(
           'GAS APIとの接続を確認できません。GITHUB_PAGES_ORIGINSの設定とGASのデプロイを確認してください。'
         ));
@@ -1518,6 +1551,7 @@
     gasApiFrame.addEventListener('error', function() {
       rejectPendingGasApiCalls_(new Error('GAS APIを読み込めませんでした。デプロイURLを確認してください。'));
     });
+    gasApiConfigured = true;
     const gasApiUrl = new URL(GAS_WEB_APP_URL);
     gasApiUrl.searchParams.set('nonce', GAS_API_NONCE);
     gasApiUrl.searchParams.set('parentOrigin', location.origin);
@@ -1525,6 +1559,26 @@
   }
 
   document.body.appendChild(gasApiFrame);
+
+  function retryGasApiConnection_() {
+    if (!gasApiConfigured || (!gasApiConnectionError && !gasApiHandshakeTimer)) return;
+    gasApiReconnectOnReady = gasApiReconnectOnReady || Boolean(gasApiConnectionError);
+    gasApiConnectionError = null;
+    gasApiHandshakeRetryCount = 0;
+    if (gasApiHandshakeTimer) {
+      clearTimeout(gasApiHandshakeTimer);
+      gasApiHandshakeTimer = null;
+    }
+    gasApiFrame.src = gasApiFrame.src;
+  }
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') retryGasApiConnection_();
+  });
+
+  window.addEventListener('pageshow', function(event) {
+    if (event.persisted) retryGasApiConnection_();
+  });
 
   // 管理者ログイン後に発行される、期限付きセッショントークン（パスワードではありません）
   let adminToken = '';
@@ -1800,12 +1854,20 @@
     }
 
     data.forEach(function(item) {
-      const card = document.createElement('div');
+      const card = document.createElement('details');
       card.className = 'list-card';
       card.innerHTML =
+        '<summary class="list-title">' + escapeHtml(item[titleField]) + '</summary>' +
+        '<div class="list-details">' +
         (showDate ? '<div class="list-date">' + escapeHtml(item.日付) + '</div>' : '') +
-        '<div class="list-title">' + escapeHtml(item[titleField]) + '</div>' +
-        '<div class="list-content">' + sanitizeRichTextHtml_(item.内容) + '</div>';
+        '<div class="list-content">' + sanitizeRichTextHtml_(item.内容) + '</div>' +
+        '</div>';
+      card.addEventListener('toggle', function() {
+        if (!card.open) return;
+        document.querySelectorAll('.list-card[open]').forEach(function(openCard) {
+          if (openCard !== card) openCard.open = false;
+        });
+      });
       const attachments = Array.isArray(item['添付ファイル']) ? item['添付ファイル'] : [];
       if (attachments.length) {
         const attachmentList = document.createElement('div');
@@ -1820,7 +1882,7 @@
           link.textContent = '📎 ' + String(file.name || '添付ファイル');
           attachmentList.appendChild(link);
         });
-        if (attachmentList.childNodes.length) card.appendChild(attachmentList);
+        if (attachmentList.childNodes.length) card.querySelector('.list-details').appendChild(attachmentList);
       }
       container.appendChild(card);
     });
