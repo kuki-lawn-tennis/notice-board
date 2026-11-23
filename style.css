@@ -290,6 +290,14 @@ button {
   list-style: none;
 }
 
+.list-card-important .list-title {
+  cursor: default;
+}
+
+.list-card-important .list-title::after {
+  content: none;
+}
+
 .list-title::-webkit-details-marker {
   display: none;
 }
@@ -586,7 +594,8 @@ textarea {
   font-weight: bold;
 }
 
-.attachment-note {
+.attachment-note,
+.importance-note {
   margin: 7px 0 0;
   color: #666;
   font-size: 12px;
