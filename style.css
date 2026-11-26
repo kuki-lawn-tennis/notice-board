@@ -91,7 +91,7 @@ button {
 
 .hero-subtitle {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 2px;
   opacity: .9;
 }
@@ -110,7 +110,7 @@ button {
   background: #fff3cd;
   color: #664d03;
   border-bottom: 1px solid #ffecb5;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -164,7 +164,7 @@ button {
 }
 
 .menu-text {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: bold;
   color: #333;
 }
@@ -194,7 +194,7 @@ button {
   gap: 6px;
   padding: 6px 0;
   color: #777;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: bold;
   letter-spacing: 1px;
   cursor: pointer;
