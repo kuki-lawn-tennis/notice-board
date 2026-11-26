@@ -462,7 +462,9 @@
      Loading
 ====================================== -->
 
-<div id="loading" class="loading">処理中...</div>
+<div id="loading" class="loading">
+  <div class="loading-box">処理中...</div>
+</div>
 
 <!-- =====================================
      Toast
@@ -1761,6 +1763,11 @@
       return;
     }
 
+    // 入力内容の確認が済んでから、保存してよいか確認する
+    if (!confirm('保存しますか？')) {
+      return;
+    }
+
     const data = {
       ID: document.getElementById('editId').value,
       内容: sanitizeRichTextHtml_(document.getElementById('editContent').innerHTML),
@@ -1867,6 +1874,10 @@
 
   function saveSettings() {
 
+    if (!confirm('保存しますか？')) {
+      return;
+    }
+
     const settings = {
       'クラブ名': document.getElementById('settingClubName').value,
       'キャッチコピー': document.getElementById('settingSubtitle').value,
@@ -1957,12 +1968,29 @@
      Loading
   ====================================== */
 
+  // 処理中は、画面全体を覆って（マウス・タッチ操作）、
+  // 後ろの画面にキーボードでも触れないようにする（inert）
+  const LOADING_LOCKED_SELECTORS = ['.container', '#editModal', '#settingsModal'];
+
+  function setPageLocked_(locked) {
+    LOADING_LOCKED_SELECTORS.forEach(function(selector) {
+      const element = document.querySelector(selector);
+      if (element) element.inert = locked;
+    });
+  }
+
   function showLoading() {
-    document.getElementById('loading').style.display = 'block';
+    // 処理中にキーボード入力（Enterなど）が後ろの画面に届かないよう、フォーカスを外す
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+    setPageLocked_(true);
+    document.getElementById('loading').style.display = 'flex';
   }
 
   function hideLoading() {
     document.getElementById('loading').style.display = 'none';
+    setPageLocked_(false);
   }
 
   /* =====================================
